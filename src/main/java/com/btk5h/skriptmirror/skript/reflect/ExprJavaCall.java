@@ -182,7 +182,13 @@ public class ExprJavaCall<T> implements Expression<T> {
               .map(Class::getSimpleName)
               .noneMatch(simpleName -> simpleName.equals(name))
           ) {
-            Skript.error(desc + " refers to a non-existent " + (type.equals(CallType.METHOD) ? "method" : "field"));
+            String memberType = type.equals(CallType.METHOD) ? "method" : "field";
+            String inaccessible = describeInaccessible(staticDescriptor.getJavaClass(), name, type);
+            if (inaccessible != null) {
+              Skript.error(desc + " refers to a " + memberType + " that " + inaccessible);
+            } else {
+              Skript.error(desc + " refers to a non-existent " + memberType);
+            }
             return false;
           }
         }
@@ -766,6 +772,37 @@ public class ExprJavaCall<T> implements Expression<T> {
       .map(arg -> String.format("%s (%s)",
         Classes.toString(arg), SkriptMirrorUtil.getDebugName(SkriptMirrorUtil.getClass(arg))))
       .collect(Collectors.joining(", "));
+  }
+
+  /**
+   * On Java 9+, members of JDK packages that aren't opened to plugins can't be made accessible, so they seem to not
+   * exist. Explains that and how to open the package.
+   *
+   * @return a description of why the member is not accessible, or null if the member doesn't exist
+   */
+  @Nullable
+  private static String describeInaccessible(Class<?> cls, String name, CallType type) {
+    for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+      boolean exists;
+      try {
+        exists = type.equals(CallType.METHOD)
+          ? Stream.of(c.getDeclaredMethods()).anyMatch(m -> m.getName().equals(name))
+          : Stream.of(c.getDeclaredFields()).anyMatch(f -> f.getName().equals(name));
+      } catch (SecurityException | LinkageError e) {
+        return null;
+      }
+      if (exists) {
+        Package pkg = c.getPackage();
+        String packageName = pkg == null ? "" : pkg.getName();
+        String module = JavaUtil.getModuleName(c);
+        if (module == null)
+          return "exists in " + c.getName() + " but can't be accessed";
+        return "exists in " + c.getName() + " but can't be accessed: Java's module " + module
+          + " doesn't open the package " + packageName + " to plugins. Add '--add-opens " + module + "/"
+          + packageName + "=ALL-UNNAMED' to the server's Java arguments to use it";
+      }
+    }
+    return null;
   }
 
   /**

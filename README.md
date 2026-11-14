@@ -6,6 +6,7 @@ Este branch é o skript-reflect **2.3**, a última versão compatível com o Skr
 Mudanças:
 * Compila contra a API Bukkit 1.7.10 e o jar do Skript 1.7.10.
 * bStats/Metrics removido (não funciona na 1.7.10).
+* Erro de carga explica quando um membro do JDK existe mas o Java 9+ não deixa acessá-lo (falta `--add-opens`).
 * Build com Gradle 8.14 (roda no Java 21), bytecode Java 8.
 
 ## Compilar
@@ -21,11 +22,20 @@ O jar fica em `build/libs/skript-reflect.jar`.
 
 ## Reflexão em servidores Forge (Crucible)
 
-* Classes do Bukkit e do CraftBukkit funcionam normalmente (`org.bukkit.craftbukkit.v1_7_R4...`).
-* As classes do Minecraft/Forge em tempo de execução usam os nomes do Forge
-  (por exemplo `net.minecraft.entity.player.EntityPlayerMP`, não `net.minecraft.server.v1_7_R4.EntityPlayer`),
-  e métodos/campos usam os nomes SRG (`func_xxxxx_x`, `field_xxxxx_x`).
-  Strings em scripts não passam pelo remapeador de plugins do Crucible, então use esses nomes.
+Testado num Crucible 1.7.10 real (Java 21) com Et Futurum Requiem, Netherlicious, NecroTempus e Kunftig: os scripts de
+teste estão em `tools/crucible-test/scripts/reflect*.sk` do fork do Skript.
+
+* Classes do Bukkit, do CraftBukkit (`org.bukkit.craftbukkit.v1_7_R4...`), do Forge/FML (`cpw.mods.fml...`,
+  `net.minecraftforge...`), de mods (`ganymedes01.etfuturum...`) e a API do Kunftig podem ser importadas e chamadas.
+* Classes do Minecraft: os nomes do Forge (`net.minecraft.entity.player.EntityPlayerMP`) funcionam em `import`; com
+  `the class "..."` o Crucible também traduz os nomes estilo Bukkit (`net.minecraft.server.v1_7_R4.EntityPlayer`).
+* Métodos e campos do Minecraft usam os nomes SRG em tempo de execução: `MinecraftServer.func_71276_C()`,
+  `player.getHandle().func_70005_c_()`, `Item.field_150901_e`. Nomes MCP (`getServer()`) dão erro ao carregar o script.
+* Campos e métodos privados do JDK funcionam nos pacotes que o Crucible abre (`java9args.txt`: `java.lang`,
+  `java.util`, `java.io`...). Em outros pacotes (ex.: `java.util.concurrent`) o erro de carga diz qual `--add-opens`
+  adicionar aos argumentos do Java.
+* `run section ... async ... and wait` volta para a thread principal no tick seguinte (cerca de 50 ms por chamada).
+* Classes precisam de `import` (ou `the class "..."`): `new java.util.ArrayList()` com o nome completo não funciona.
 
 ---
 

@@ -64,6 +64,19 @@ public final class JavaUtil {
    * @return a {@link Stream} of {@link Field}s, with the fields declared in the given class,
    * and the public fields of the given class, without duplicates.
    */
+  /**
+   * @return the name of the Java 9+ module of the class, or null on Java 8 or for classes outside named modules
+   */
+  public static String getModuleName(Class<?> cls) {
+    try {
+      Object module = Class.class.getMethod("getModule").invoke(cls);
+      Object name = module.getClass().getMethod("getName").invoke(module);
+      return name instanceof String ? (String) name : null;
+    } catch (ReflectiveOperationException | RuntimeException e) {
+      return null;
+    }
+  }
+
   public static Stream<Field> fields(Class<?> cls) {
     return Stream.concat(
       Arrays.stream(cls.getFields()),
