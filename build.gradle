@@ -1,39 +1,45 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
-group 'com.btk5h.skript-mirror'
-version '2.6.3'
+// skript-reflect for the Skript 1.7.10 port (Crucible / Thermos / KCauldron) running on Java 21.
 
-def latestJava = 25
-def oldestJava = 21
+group = 'com.btk5h.skript-mirror'
+version = '2.3-crucible'
 
 apply plugin: 'java'
 
 repositories {
 	mavenCentral()
-	maven { url 'https://repo.papermc.io/repository/maven-public/' }
-	maven { url 'https://repo.skriptlang.org/releases' }
+	maven { url = 'https://jitpack.io' } // Bukkit 1.7.10 API
 }
 
 processResources {
 	filter ReplaceTokens, tokens: [
-		"version": version
+		'version': version
 	]
 }
 
 java {
-	toolchain.languageVersion.set(JavaLanguageVersion.of(latestJava))
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
-	options.compilerArgs += [
-	    '-source', "${oldestJava}",
-	    '-target', "${oldestJava}"
-	]
+	options.release = 8
+	options.compilerArgs += ['-Xlint:-options']
 }
 
+// The Skript 1.7.10 port jar. By default the sibling checkout of the Skript fork is used
+// (build it first with `./gradlew build` in ../Skript); override with -PskriptJar=/path/to/Skript.jar
+def skriptJar = project.findProperty('skriptJar') ?: '../Skript/build/libs/Skript.jar'
+
 dependencies {
-	compileOnly "io.papermc.paper:paper-api:26.1.2.build.+"
-	compileOnly "com.github.SkriptLang:Skript:2.15.2"
-	compileOnly "org.ow2.asm:asm:9.9"
+	// Final Bukkit API commit (1.7.10-R0.1-SNAPSHOT), built by JitPack from github.com/Bukkit/Bukkit
+	compileOnly 'com.github.Bukkit:Bukkit:f210234'
+	compileOnly files(skriptJar)
+	compileOnly 'org.eclipse.jdt:org.eclipse.jdt.annotation:2.2.700'
+}
+
+jar {
+	archiveFileName = 'skript-reflect.jar'
 }

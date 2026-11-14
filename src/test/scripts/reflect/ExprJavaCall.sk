@@ -1,2 +1,0 @@
-test "ExprJavaCall":
-	assert "123".length() is 3 with "incorrect String##length return"
